@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs #-}
-
 module Pew.Logger.Config where
 
 import qualified Data.Text as T

@@ -1,6 +1,3 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module Pew.Logger where
 
 import qualified Data.Aeson as J
