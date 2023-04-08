@@ -25,8 +25,9 @@ data ConsoleLoggerConfig severity = ConsoleLoggerConfig
 
 mkConsoleTextLogger :: ConsoleLoggerConfig severity -> LoggerConfig severity -> (BS.Builder -> IO ()) -> IO (LoggerHandle severity)
 mkConsoleTextLogger ConsoleLoggerConfig{..} LoggerConfig{..} logAction = do
+  tz <- Time.getCurrentTimeZone
   let attachMessage rd msg stamp severity =
-        let timeFormat = Time.formatTime Time.defaultTimeLocale timestampFormat
+        let timeFormat = Time.formatTime Time.defaultTimeLocale timestampFormat . Time.utcToLocalTime tz
          in fold
               [ printTimestamp $ "[" <> T.fromText (T.pack (timeFormat stamp)) <> "]"
               , " "
