@@ -1,7 +1,6 @@
 module Pew.Logger where
 
 import qualified Data.Aeson as J
-import qualified Data.ByteString.Builder as BS
 import Data.Foldable (Foldable (..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -10,8 +9,7 @@ import qualified Data.Time as Time
 
 data LoggerHandle severity where
   LoggerHandle ::
-    { logAction :: BS.Builder -> IO ()
-    , putLog :: rd -> T.Builder -> Time.UTCTime -> severity -> IO ()
+    { putLog :: rd -> T.Builder -> Time.UTCTime -> severity -> IO ()
     , labels :: Map.Map T.Text J.Value
     , render :: Map.Map T.Text J.Value -> rd
     , rendered :: rd

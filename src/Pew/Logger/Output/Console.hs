@@ -39,8 +39,7 @@ mkConsoleTextLogger ConsoleLoggerConfig{..} LoggerConfig{..} logAction = do
               ]
   pure
     LoggerHandle
-      { logAction
-      , putLog = \labels msg stamp level -> when (filterSeverity level) do
+      { putLog = \labels msg stamp level -> when (filterSeverity level) do
           logAction $ T.encodeUtf8Builder $ T.toLazyText $ attachMessage labels msg stamp level
       , labels = mempty
       , render = \m ->

@@ -22,8 +22,7 @@ mkJsonLogger LoggerConfig{..} logAction = do
          in message <> "\n"
   pure
     LoggerHandle
-      { logAction
-      , putLog = \labels msg stamp level -> when (filterSeverity level) do
+      { putLog = \labels msg stamp level -> when (filterSeverity level) do
           logAction $ attachMessage labels msg stamp level
       , labels = mempty
       , render = foldMap (\(k, v) -> J.pair (J.fromText k) (J.value v)) . Map.toList
