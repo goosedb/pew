@@ -1,7 +1,7 @@
 module Pew.QuickStart.Backend.Async where
 
 import Control.Concurrent (forkFinally, killThread)
-import Control.Concurrent.STM (flushTBQueue, newTBQueueIO, writeTBQueue, writeTVar)
+import Control.Concurrent.STM (flushTBQueue, newTBQueueIO, writeTBQueue, writeTVar, peekTBQueue)
 import Control.Exception (bracket, finally, uninterruptibleMask_)
 import Control.Exception.Base (mask_)
 import Control.Monad (forever)
@@ -35,12 +35,13 @@ forkBackgroundLogger BackgroundLoggerConfig {..} putLog flush = do
   queue <- newTBQueueIO capacity
   isAlive <- newTVarIO True
   let maskWorker = if waitAllLogsFlushed then uninterruptibleMask_ else id
+  let peek = atomically (peekTBQueue queue)
   let writeBatch = maskWorker do
         msgs <- atomically $ fetch queue
         for_ msgs (mask_ . putLog)
         flush
   tid <- forkFinally
-    do forever writeBatch
+    do forever (peek >> writeBatch)
     do \_ -> writeBatch `finally` atomically (writeTVar isAlive False)
   pure (atomically . writeTBQueue queue, Worker tid isAlive)
  where

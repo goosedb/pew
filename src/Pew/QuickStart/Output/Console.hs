@@ -14,7 +14,11 @@ import Data.Text.Builder.Linear qualified as B
 import Data.Text.Lazy qualified as TL
 import Data.Time qualified as Time
 import Pew.Logger.General (Label (..), LoggerHandle (..), LoggerHandleContext (LoggerHandleContext), LoggerHandleSettings (..), PutLog)
-import System.Console.ANSI (SGR (..), setSGRCode)
+import System.Console.ANSI (SGR (..), setSGRCode, ConsoleLayer (..), ColorIntensity (..), Color (..))
+import Pew.Severity (Severity(..), severityToText)
+import qualified Data.Text.Builder.Linear as Text.Linear
+import Data.Time (getCurrentTimeZone)
+import Control.Monad.IO.Class (MonadIO (..))
 
 data ConsoleLoggerConfig time severity = ConsoleLoggerConfig
   { severityColor :: severity -> [SGR]
@@ -26,8 +30,27 @@ data ConsoleLoggerConfig time severity = ConsoleLoggerConfig
   , formatSeverity :: severity -> B.Builder
   }
 
-utcTimeFormat :: Time.TimeZone -> String -> Time.UTCTime -> B.Builder
-utcTimeFormat tz format = B.fromText . T.pack . Time.formatTime Time.defaultTimeLocale format . Time.utcToLocalTime tz
+defaultConsoleLoggerConfig :: MonadIO m => String -> m (ConsoleLoggerConfig Time.UTCTime Severity)
+defaultConsoleLoggerConfig timestampFormat = liftIO do
+  timezome <- getCurrentTimeZone
+  let timeFormat = Just . utcTimeFormat timezome timestampFormat
+  pure $ ConsoleLoggerConfig severityColor timestampColor namespaceColor labelKeyColor labelValueColor timeFormat showSeverity
+  where  
+    namespaceColor = [SetColor Foreground Dull Magenta]
+    timestampColor = [SetColor Foreground Vivid White]
+    labelKeyColor = [SetColor Foreground Vivid Blue]
+    labelValueColor = [SetColor Foreground Vivid Blue]
+    showSeverity = Text.Linear.fromText . severityToText
+    severityColor = pure . uncurry (SetColor Foreground) . \case
+      Debug -> (Dull, Black)
+      Info -> (Vivid, Green) 
+      Notice -> (Vivid, Green) 
+      Warning -> (Vivid, Yellow)
+      Error -> (Vivid, Red)
+      Critical-> (Vivid, Red)
+      Alert-> (Vivid, Red)
+      Emergency-> (Vivid, Red)
+    utcTimeFormat tz format = B.fromText . T.pack . Time.formatTime Time.defaultTimeLocale format . Time.utcToLocalTime tz
 
 mkConsoleLogger :: forall time severity. ConsoleLoggerConfig time severity -> PutLog IO -> LoggerHandle IO time severity
 mkConsoleLogger ConsoleLoggerConfig{..} logAction =
@@ -38,9 +61,9 @@ mkConsoleLogger ConsoleLoggerConfig{..} logAction =
         fold
           [ maybe "" (\t -> printTimestamp $ "[" <> t <> "]") (formatTime stamp)
           , " "
+          , printSeverity severity
           , rdn
           , rdl
-          , printSeverity severity
           , " "
           , msg
           , "\n"
@@ -51,11 +74,11 @@ mkConsoleLogger ConsoleLoggerConfig{..} logAction =
           LoggerHandleSettings
             { putLog = \namespace labels msg stamp level ->
                 logAction $ attachMessage namespace labels msg stamp level
-            , renderNamespace = \n -> (formatNamespace . B.fromText . Text.intercalate "/" $ F.toList n) <> if Seq.null n then "" else " "
+            , renderNamespace = \n -> " " <> (formatNamespace . B.fromText . Text.intercalate "/" $ F.toList n)
             , renderLabels = \m ->
                 if null m
-                  then ""
-                  else "{" <> (fold . Seq.intersperse "," $ renderLabels m) <> "} "
+                  then " "
+                  else " " <> (fold . Seq.intersperse " " $ renderLabels m)
             }
       , context = LoggerHandleContext mempty mempty mempty mempty
       }
